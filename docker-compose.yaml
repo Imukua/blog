@@ -1,16 +1,58 @@
-#docker compose for mongodb and mongo express web ui
+#file will create 3 mongodb containers and 1 mongo-express container. 
 #NOTE: .mongo.env and .mongo-express.env files should be in the same directory as this file
 
 services:
 
-  mongo:
-    image: mongo
+  mongo1:
+    container_name: mongo1
+    build:
+      context: .
+      dockerfile: Dockerfile
     restart: always
     ports:
       - 27017:27017
     env_file:
       - .mongo.env
+    command: --replSet rs0 --keyFile /etc/mongo/keyfile --bind_ip_all --port 27017
+    healthcheck:
+        test: echo "try { rs.status() } catch (err) { rs.initiate({_id:'rs0',members:[{_id:0,host:'mongo1:27017'}, {_id:1,host:'mongo2:27017'},{_id:2,host:'mongo3:27017'}]}) }" | mongosh --port 27017 -u root -p root --authenticationDatabase admin
+        interval: 5s
+        timeout: 15s
+        start_period: 15s
+        retries: 10
+    volumes:
+      - mongo_data1:/data/db
+  mongo2:
+    container_name: mongo2
+    build:
+      context: .
+      dockerfile: Dockerfile
+    restart: always
+    ports:
+      - 27018:27017
+    env_file:
+      - .mongo.env
+    command: --replSet rs0 --keyFile /etc/mongo/keyfile --bind_ip_all --port 27017
+    volumes:
+      - mongo_data2:/data/db
+    depends_on:
+      - mongo1
 
+  mongo3:
+    container_name: mongo3
+    build:
+      context: .
+      dockerfile: Dockerfile
+    restart: always
+    ports:
+      - 27019:27017
+    env_file:
+      - .mongo.env
+    command: --replSet rs0 --keyFile /etc/mongo/keyfile --bind_ip_all --port 27017
+    volumes:
+      - mongo_data3:/data/db
+    depends_on:
+      - mongo1
   mongo-express:
     image: mongo-express
     restart: always
@@ -18,3 +60,9 @@ services:
       - 8081:8081
     env_file:
       - .mongo-express.env
+
+volumes:  
+  mongo_data1:
+  mongo_data2:
+  mongo_data3:
+ 
